@@ -1,13 +1,3 @@
-"""
-A from scratch implementation of Transformer network,
-following the paper Attention is all you need with a
-few minor differences. I tried to make it as clear as
-possible to understand and also went through the code
-on my youtube channel!
-
-
-"""
-
 import torch
 import torch.nn as nn
 
@@ -29,9 +19,10 @@ class SelfAttention(nn.Module):
         self.fc_out = nn.Linear(heads * self.head_dim, embed_size)
 
     def forward(self, values, keys, query, mask):
-        # Get number of training examples
+        # num of train samples - examples put at the same time
         N = query.shape[0]
 
+        # corresponding to either the source (encoder) or the target (decoder) sentence length
         value_len, key_len, query_len = values.shape[1], keys.shape[1], query.shape[1]
 
         # Split the embedding into self.heads different pieces
@@ -43,37 +34,27 @@ class SelfAttention(nn.Module):
         keys = self.keys(keys)  # (N, key_len, heads, head_dim)
         queries = self.queries(query)  # (N, query_len, heads, heads_dim)
 
-        # Einsum does matrix mult. for query*keys for each training example
-        # with every other training example, don't be confused by einsum
-        # it's just how I like doing matrix multiplication & bmm
-
         energy = torch.einsum("nqhd,nkhd->nhqk", [queries, keys])
-        # queries shape: (N, query_len, heads, heads_dim),
+        # queries shape: (N, query_len, heads, heads_dim)
         # keys shape: (N, key_len, heads, heads_dim)
-        # energy: (N, heads, query_len, key_len)
+        # energy shape: (N, heads, query_len, key_len)
 
-        # Mask padded indices so their weights become 0
         if mask is not None:
             energy = energy.masked_fill(mask == 0, float("-1e20"))
 
-        # Normalize energy values similarly to seq2seq + attention
-        # so that they sum to 1. Also divide by scaling factor for
-        # better stability
         attention = torch.softmax(energy / (self.embed_size ** (1 / 2)), dim=3)
-        # attention shape: (N, heads, query_len, key_len)
+        # attention shape: (N, heads, query_len, kex_len);               dim=3 -> key_len: length of the source sentence
 
         out = torch.einsum("nhql,nlhd->nqhd", [attention, values]).reshape(
             N, query_len, self.heads * self.head_dim
         )
         # attention shape: (N, heads, query_len, key_len)
         # values shape: (N, value_len, heads, heads_dim)
-        # out after matrix multiply: (N, query_len, heads, head_dim), then
-        # we reshape and flatten the last two dimensions.
+        # --> key_len == value_len --> so multiplying over those dimensions (calling it l)
+        # (N, query_len, heads, head_dim)
+        # afterwards: ...concatenate = flatten last two dimension
 
         out = self.fc_out(out)
-        # Linear layer doesn't modify the shape, final shape will be
-        # (N, query_len, embed_size)
-
         return out
 
 
@@ -89,16 +70,16 @@ class TransformerBlock(nn.Module):
             nn.ReLU(),
             nn.Linear(forward_expansion * embed_size, embed_size),
         )
-
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, value, key, query, mask):
         attention = self.attention(value, key, query, mask)
 
-        # Add skip connection, run through normalization and finally dropout
         x = self.dropout(self.norm1(attention + query))
+                                                # query ... skip connection
         forward = self.feed_forward(x)
         out = self.dropout(self.norm2(forward + x))
+                                                # x ... skip connection
         return out
 
 
@@ -112,7 +93,7 @@ class Encoder(nn.Module):
         device,
         forward_expansion,
         dropout,
-        max_length,
+        max_length,  # -> Positional Encoding
     ):
 
         super(Encoder, self).__init__()
@@ -142,8 +123,7 @@ class Encoder(nn.Module):
             (self.word_embedding(x) + self.position_embedding(positions))
         )
 
-        # In the Encoder the query, key, value are all the same, it's in the
-        # decoder this will change. This might look a bit odd in this case.
+        # since values, keys, queries are the same in encoder
         for layer in self.layers:
             out = layer(out, out, out, mask)
 
@@ -163,6 +143,7 @@ class DecoderBlock(nn.Module):
     def forward(self, x, value, key, src_mask, trg_mask):
         attention = self.attention(x, x, x, trg_mask)
         query = self.dropout(self.norm(attention + x))
+                                                # x... skip connection
         out = self.transformer_block(value, key, query, src_mask)
         return out
 
@@ -202,7 +183,6 @@ class Decoder(nn.Module):
             x = layer(x, enc_out, enc_out, src_mask, trg_mask)
 
         out = self.fc_out(x)
-
         return out
 
 
@@ -225,14 +205,14 @@ class Transformer(nn.Module):
         super(Transformer, self).__init__()
 
         self.encoder = Encoder(
-            src_vocab_size,
-            embed_size,
-            num_layers,
-            heads,
-            device,
-            forward_expansion,
-            dropout,
-            max_length,
+            src_vocab_size=src_vocab_size,
+            embed_size=embed_size,
+            num_layers=num_layers,
+            heads=heads,
+            device=device,
+            forward_expansion=forward_expansion,
+            dropout=dropout,
+            max_length=max_length,
         )
 
         self.decoder = Decoder(
@@ -279,6 +259,9 @@ if __name__ == "__main__":
         device
     )
     trg = torch.tensor([[1, 7, 4, 3, 5, 9, 2, 0], [1, 5, 6, 2, 4, 7, 6, 2]]).to(device)
+    # 1 ... start token
+    # 0 ... padding
+    # 2 ... end token
 
     src_pad_idx = 0
     trg_pad_idx = 0
