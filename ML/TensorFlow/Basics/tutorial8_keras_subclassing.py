@@ -28,7 +28,7 @@ class CNNBlock(layers.Layer):
 
     def call(self, input_tensor, training=False):
         x = self.conv(input_tensor)
-        print(x.shape)
+        # print(x.shape)
         x = self.bn(x, training=training)
         x = tf.nn.relu(x)
         return x
@@ -67,8 +67,23 @@ class ResNet_Like(keras.Model):
         self.block1 = ResBlock([ 32,  32,  64])
         self.block2 = ResBlock([128, 128, 256])
         self.block3 = ResBlock([128, 256, 512])
+        self.pool = layers.GlobalAveragePooling2D()     # ... Flattens the WIDTH and the HEIGHT
+        self.classifier = layers.Dense(num_classes)
+
+    def call(self, input_tensor, training=False):
+        x = self.block1(input_tensor, training=training)
+        x = self.block2(x, training=training)
+        x = self.block3(x, training=training)
+        x = self.pool(x)
+        x = self.classifier(x)
+        return x
+
+    def model(self):
+        x = keras.Input(shape=(28, 28, 1))
+        return keras.Model(inputs=[x], outputs=self.call(x))
 
 
+model = ResNet_Like(num_classes=10)
 
 model.compile(
     optimizer=keras.optimizers.Adam(),
@@ -76,5 +91,8 @@ model.compile(
     metrics=['accuracy'],
 )
 
-model.fit(x_train, y_train, batch_size=64, epochs=3, verbose=2)
+model.fit(x_train, y_train, batch_size=64, epochs=1, verbose=2)
+
+print(model.model().summary())
+
 model.evaluate(x_test, y_test, batch_size=64, verbose=1)
