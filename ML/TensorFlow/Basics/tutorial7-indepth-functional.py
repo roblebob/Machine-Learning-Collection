@@ -57,6 +57,10 @@ test_dataset = (
     .prefetch(buffer_size=AUTOTUNE)
 )
 
+
+
+
+
 inputs = keras.Input(shape=(64, 64, 1))
 x = layers.Conv2D(
     filters=32,
