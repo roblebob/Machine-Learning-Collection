@@ -96,3 +96,4 @@ model.fit(x_train, y_train, batch_size=64, epochs=1, verbose=2)
 print(model.model().summary())
 
 model.evaluate(x_test, y_test, batch_size=64, verbose=1)
+
