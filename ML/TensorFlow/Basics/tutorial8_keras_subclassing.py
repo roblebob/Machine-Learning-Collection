@@ -34,15 +34,15 @@ class CNNBlock(layers.Layer):
         return x
 
 
-model = keras.Sequential(
-    [
-        CNNBlock(32),
-        CNNBlock(64),
-        CNNBlock(128),
-        layers.Flatten(),
-        layers.Dense(10),
-    ]
-)
+# model = keras.Sequential(
+#     [
+#         CNNBlock(32),
+#         CNNBlock(64),
+#         CNNBlock(128),
+#         layers.Flatten(),
+#         layers.Dense(10),
+#     ]
+# )
 
 class ResBlock(layers.Layer):
     def __init__(self, channels):
@@ -51,12 +51,22 @@ class ResBlock(layers.Layer):
         self.cnn2 = CNNBlock(channels[1])
         self.cnn3 = CNNBlock(channels[2])
         self.pooling = layers.MaxPooling2D()
-        self.identity_mapping = layers.Conv2D(channels[1], 3, padding='same')
+        self.identity_mapping = layers.Conv2D(channels[1], 1, padding='same')  # to use as skip-connection later
 
     def call(self, input_tensor, training=False):
+        x = self.cnn1(input_tensor, training=training)
+        x = self.cnn2(x, training=training)
+        x = self.cnn3(x + self.identity_mapping(input_tensor) , training=training)
+        x = self.pooling(x)
+        return x
 
 
-
+class ResNet_Like(keras.Model):
+    def __init__(self, num_classes=10):
+        super(ResNet_Like, self).__init__()
+        self.block1 = ResBlock([ 32,  32,  64])
+        self.block2 = ResBlock([128, 128, 256])
+        self.block3 = ResBlock([128, 256, 512])
 
 
 
