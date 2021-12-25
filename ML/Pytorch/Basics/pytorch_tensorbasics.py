@@ -29,6 +29,7 @@ my_tensor = torch.tensor(
     [[1, 2, 3], [4, 5, 6]], dtype=torch.float32, device=device, requires_grad=True
 )
 
+
 # A few tensor attributes
 print(
     f"Information about tensor: {my_tensor}"
