@@ -83,8 +83,8 @@ def check_accuracy(loader, model):
 
     with torch.no_grad():
         for x, y in loader:
-            x.to(device=device)
-            y.to(device=device)
+            x = x.to(device=device)
+            y = y.to(device=device)
             x = x.reshape(x.shape[0], -1)
 
             scores = model(x)
