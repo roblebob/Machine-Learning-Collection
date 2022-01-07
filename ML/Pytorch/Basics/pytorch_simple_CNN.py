@@ -10,19 +10,7 @@ from torch.utils.data import DataLoader  # Gives easier dataset managment by cre
 from tqdm import tqdm  # For nice progress bar!
 
 
-# Create Fully Connected Network
-class NN(nn.Module):
-    def __init__(self, input_size, num_classes):
-        super(NN, self).__init__()
-        self.fc1 = nn.Linear(input_size, 50)
-        self.fc2 = nn.Linear(50, num_classes)
-
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x
-
-#TODO: Create simple CNN
+# Create simple CNN
 class CNN(nn.Module):
     def __init__(self, in_channels=1, num_classes=10):
         super(CNN, self).__init__()
@@ -43,11 +31,7 @@ class CNN(nn.Module):
         x = self.fc1(x)
         return x
 
-model = CNN()
-x = torch.randn(64, 1, 28, 28)
-print(x.shape)
-print(model(x).shape)
-exit()
+
 
 
 
@@ -56,16 +40,11 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(device)
 
 # Hyperparameters
-input_size = 28 * 28
+in_channels = 1
 num_classes = 10
 learning_rate = 0.001
 batch_size = 64
-num_epochs = 1
-
-
-
-
-
+num_epochs = 5
 
 
 # Load data
@@ -75,7 +54,7 @@ test_dataset = datasets.MNIST(root='dataset/', train=False, transform=transforms
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
 # Initialize network
-model = NN(input_size=input_size, num_classes=num_classes).to(device)
+model = CNN().to(device)
 
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss()
@@ -89,9 +68,6 @@ for epoch in range(num_epochs):
         data = data.to(device=device)
         targets = targets.to(device=device)
         # data : (64, 1, 28, 28)
-
-        # get correct shape
-        data = data.reshape(data.shape[0], -1)  # flattens all but the first -> (64, 784)
 
         # forward
         scores = model(data)
@@ -119,7 +95,6 @@ def check_accuracy(loader, model):
         for x, y in loader:
             x = x.to(device=device)
             y = y.to(device=device)
-            x = x.reshape(x.shape[0], -1)
 
             scores = model(x)
             # (64, 10)
